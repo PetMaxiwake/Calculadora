@@ -114,15 +114,29 @@
   .row-line span:last-child{font-family:'IBM Plex Mono',monospace;}
   .row-line.total{font-weight:600;border-bottom:none;padding-top:8px;}
 
-  details{margin-top:16px;}
-  details summary{
-    cursor:pointer;font-size:12px;color:#a9c4bb;list-style:none;
-    display:flex;align-items:center;gap:6px;
+  .comp-grid{
+    display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px;
   }
-  details summary::-webkit-details-marker{display:none;}
-  details summary::before{content:"▸";transition:transform .15s;}
-  details[open] summary::before{transform:rotate(90deg);}
-  details .breakdown{padding-top:10px;}
+  @media (max-width:680px){ .comp-grid{grid-template-columns:1fr;} }
+  .comp-card{
+    background:var(--surface);border:1px solid var(--line);border-radius:12px;
+    padding:16px 18px;
+  }
+  .comp-card h3{
+    font-family:'Space Grotesk',sans-serif;font-size:13px;margin:0 0 10px;
+    color:var(--accent);text-transform:uppercase;letter-spacing:.03em;
+  }
+  .comp-line{
+    display:flex;justify-content:space-between;font-size:12.5px;padding:4px 0;
+    border-bottom:1px dashed var(--line);color:var(--ink);
+  }
+  .comp-line span:first-child{color:var(--ink-soft);}
+  .comp-line span:last-child{font-family:'IBM Plex Mono',monospace;color:var(--ink);}
+  .comp-line.total{
+    font-weight:700;border-bottom:none;border-top:1.5px solid var(--ink);
+    margin-top:4px;padding-top:8px;font-size:13.5px;color:var(--accent);
+  }
+  .comp-line.total span:last-child{color:var(--accent);}
 
   footer.hint{
     margin-top:26px;font-size:11.5px;color:var(--ink-soft);line-height:1.6;
@@ -236,17 +250,19 @@
       <div class="row-line"><span>Preço Mínimo</span><span id="outPrecoMinimo">0,00</span></div>
       <div class="row-line"><span>Pr. Mín. Ct. Médio*</span><span id="outPrMinCtMedio">0,00</span></div>
       <div class="row-line total"><span>Pr. Ideal p/ Compra</span><span id="outPrIdealCompra">0,00</span></div>
-
-      <details>
-        <summary>Ver composição do custo de compra</summary>
-        <div class="breakdown" id="breakdownCompra"></div>
-      </details>
-      <details>
-        <summary>Ver composição do custo de venda</summary>
-        <div class="breakdown" id="breakdownVenda"></div>
-      </details>
     </div>
 
+  </div>
+
+  <div class="comp-grid">
+    <div class="comp-card">
+      <h3>Composição Custo de Compra</h3>
+      <div id="breakdownCompra"></div>
+    </div>
+    <div class="comp-card">
+      <h3>Composição Custo de Venda</h3>
+      <div id="breakdownVenda"></div>
+    </div>
   </div>
 
   <footer class="hint">
@@ -345,12 +361,12 @@ function calcular(){
   document.getElementById('outPrIdealCompra').textContent = fmt2(prIdealCompra);
 
   document.getElementById('breakdownCompra').innerHTML = linhasCompra.map(([l,v])=>
-    `<div class="row-line"><span>${l}</span><span>${fmt3(v)}</span></div>`
-  ).join('') + `<div class="row-line total"><span>(=) Custo de Compra</span><span>${fmt3(custoCompra)}</span></div>`;
+    `<div class="comp-line"><span>${l}</span><span>${fmt3(v)}</span></div>`
+  ).join('') + `<div class="comp-line total"><span>(=) Custo de Compra</span><span>${fmt3(custoCompra)}</span></div>`;
 
   document.getElementById('breakdownVenda').innerHTML = linhasVenda.map(([l,v])=>
-    `<div class="row-line"><span>${l}</span><span>${fmt3(v)}</span></div>`
-  ).join('') + `<div class="row-line total"><span>(=) Custo de Venda</span><span>${fmt3(custoVenda)}</span></div>`;
+    `<div class="comp-line"><span>${l}</span><span>${fmt3(v)}</span></div>`
+  ).join('') + `<div class="comp-line total"><span>(=) Custo de Venda</span><span>${fmt3(custoVenda)}</span></div>`;
 }
 
 document.querySelectorAll('.calc').forEach(el => el.addEventListener('input', calcular));

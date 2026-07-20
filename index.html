@@ -46,10 +46,46 @@
   }
   .product-row{
     background:var(--surface);border:1px solid var(--line);border-radius:10px;
-    padding:12px 16px;display:grid;grid-template-columns:2fr 1.3fr 90px;gap:12px;margin-bottom:22px;
+    padding:12px 16px;display:grid;grid-template-columns:1fr 90px;gap:12px;margin-bottom:22px;
   }
   .product-row label{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);display:block;margin-bottom:4px;}
   .product-row input{width:100%;border:1px solid var(--line);border-radius:6px;padding:7px 9px;font-family:'Inter',sans-serif;font-size:13px;background:#fbfbfa;}
+
+  .erp-card{
+    background:var(--accent-soft);border:1px solid #bcd9cd;border-radius:10px;
+    padding:14px 16px;margin-bottom:14px;
+  }
+  .erp-row{
+    display:grid;grid-template-columns:2fr 1fr 170px;gap:12px;align-items:end;
+  }
+  @media (max-width:680px){ .erp-row{grid-template-columns:1fr;} }
+  .erp-search-wrap{position:relative;}
+  .erp-card label{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);display:block;margin-bottom:4px;font-weight:600;}
+  .erp-card input, .erp-card select{
+    width:100%;border:1px solid #bcd9cd;border-radius:6px;padding:8px 9px;
+    font-family:'Inter',sans-serif;font-size:13px;background:#ffffff;
+  }
+  .btn-ghost{
+    width:100%;border:1px solid #bcd9cd;background:#ffffff;border-radius:6px;
+    padding:8px 9px;font-family:'Inter',sans-serif;font-size:12.5px;color:var(--accent);
+    cursor:pointer;
+  }
+  .btn-ghost:hover{background:var(--accent);color:#fff;}
+  .erp-results{
+    position:absolute;top:100%;left:0;right:0;z-index:20;
+    background:#fff;border:1px solid var(--line);border-radius:8px;
+    max-height:280px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.12);
+    display:none;margin-top:4px;
+  }
+  .erp-results.open{display:block;}
+  .erp-result-item{
+    padding:8px 10px;font-size:12.5px;cursor:pointer;border-bottom:1px solid var(--line);
+  }
+  .erp-result-item:last-child{border-bottom:none;}
+  .erp-result-item:hover{background:var(--accent-soft);}
+  .erp-result-item .cod{font-family:'IBM Plex Mono',monospace;color:var(--accent);margin-right:6px;}
+  .erp-selected{font-size:11.5px;color:var(--ink-soft);margin-top:8px;}
+  .erp-selected b{color:var(--accent);}
 
   .grid{
     display:grid;
@@ -138,6 +174,12 @@
   }
   .comp-line.total span:last-child{color:var(--accent);}
 
+  .erp-note{
+    background:var(--accent-soft);border:1px solid #bcd9cd;border-radius:6px;
+    padding:8px 10px;font-size:11px;color:var(--accent);margin-bottom:10px;line-height:1.5;
+  }
+  #cardCompra.erp-mode .field{opacity:.4;pointer-events:none;}
+
   footer.hint{
     margin-top:26px;font-size:11.5px;color:var(--ink-soft);line-height:1.6;
     border-top:1px solid var(--line);padding-top:14px;
@@ -155,14 +197,31 @@
     </div>
   </header>
 
+  <div class="erp-card">
+    <div class="erp-row">
+      <div class="erp-search-wrap">
+        <label>Buscar produto do ERP (código ou descrição)</label>
+        <input id="buscaProduto" autocomplete="off" placeholder="Ex: 1958151 ou Golden Form">
+        <div id="resultadosBusca" class="erp-results"></div>
+      </div>
+      <div>
+        <label>Unidade</label>
+        <select id="seletorUnidade" disabled>
+          <option value="">Selecione um produto primeiro</option>
+        </select>
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button id="btnLimpar" class="btn-ghost" type="button">Limpar / modo manual</button>
+      </div>
+    </div>
+    <div id="produtoSelecionadoInfo" class="erp-selected"></div>
+  </div>
+
   <div class="product-row">
     <div>
       <label>Produto</label>
       <input id="produto" value="1958151 — Golden Form Ad.Carne M.Bites 3kg — Premier">
-    </div>
-    <div>
-      <label>Fornecedor</label>
-      <input id="fornecedor" value="Premier Pet Comercial Ltda">
     </div>
     <div>
       <label>Qtd. Emb.</label>
@@ -173,8 +232,9 @@
   <div class="grid">
 
     <!-- COMPRA -->
-    <div class="card">
+    <div class="card" id="cardCompra">
       <h2><span class="dot"></span>Custo de Compra</h2>
+      <div id="avisoErpCompra" class="erp-note" style="display:none;"></div>
 
       <div class="field"><label>Preço de Compra (R$)</label>
         <div class="unit-wrap"><input class="calc" id="precoCompra" type="number" step="0.001" value="35.840"><span class="suffix">R$</span></div>
@@ -266,9 +326,10 @@
   </div>
 
   <footer class="hint">
-    * <b>Pr. Mín. Ct. Médio</b> replica o Preço Mínimo pois esta calculadora não controla um custo médio de estoque separado.
-    O ICMS ST está simplificado como Base = Preço × (1+MVA) sem descontar o ICMS próprio da operação anterior.
-    Todos os campos com fundo amarelo podem ser alterados livremente para simular cenários — os resultados recalculam em tempo real, sem enviar dados para nenhum servidor.
+    <b>Modo ERP:</b> ao carregar um produto, o Custo de Compra e o Custo Médio vêm direto do banco (já calculados pelo sistema — sem estimativa de %). O Preço de Venda vem preenchido mas é editável para simular. O Preço Ideal p/ Compra, nesse modo, não desconta créditos de ICMS/IPI/PIS/Cofins na compra (não temos essa quebra por produto nas duas tabelas usadas).<br>
+    <b>Modo manual</b> (sem produto carregado): todos os campos com fundo amarelo são livres para simular, e o Custo de Compra é calculado a partir das % informadas.<br>
+    * <b>Pr. Mín. Ct. Médio</b> usa o Custo Médio do ERP quando um produto está carregado; em modo manual, replica o Preço Mínimo (não há custo médio separado disponível).<br>
+    A busca de produtos só funciona quando a página está hospedada em http/https (ex: GitHub Pages) — abrir o arquivo direto (duplo clique) não carrega a base de dados.
   </footer>
 
 </div>
@@ -278,6 +339,8 @@ function num(id){ const v = parseFloat(document.getElementById(id).value); retur
 function fmt3(v){ return v.toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3}); }
 function fmt2(v){ return v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function fmtPct(v){ return (v*100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '%'; }
+
+let erpOverride = null; // {custoCompra, custoMedio} when a product+unit is loaded
 
 function calcular(){
   const pc = num('precoCompra');
@@ -295,7 +358,7 @@ function calcular(){
         difVenda = num('difVenda')/100, stComplVenda = num('stComplVenda')/100,
         margemLucro = num('margemLucro')/100, abatCustoVenda = num('abatCustoVenda');
 
-  // Composição custo de compra
+  // Composição custo de compra (simulação manual, a partir das %)
   const linhasCompra = [
     ['(+) Preço de Compra', pc],
     ['(+) Frete', pc*frete],
@@ -314,7 +377,8 @@ function calcular(){
     ['(-) Crédito FCP', -pc*credFcp],
     ['(+/-) Dif. Custo', pc*difCusto],
   ];
-  const custoCompra = linhasCompra.reduce((s,[,v])=>s+v,0);
+  const custoCompraManual = linhasCompra.reduce((s,[,v])=>s+v,0);
+  const custoCompra = erpOverride ? erpOverride.custoCompra : custoCompraManual;
 
   // Composição custo de venda
   const linhasVenda = [
@@ -339,10 +403,11 @@ function calcular(){
   const somaSaida = debIcms+debIpi+debPis+debCofins+debFcp+custoOp+comissao+iss;
   const precoSugerido = (1-(somaSaida+margemLucro)) !== 0 ? custoCompra/(1-(somaSaida+margemLucro)) : 0;
   const precoMinimo = (1-somaSaida) !== 0 ? custoCompra/(1-somaSaida) : 0;
-  const prMinCtMedio = precoMinimo;
+  const custoMedioBase = erpOverride ? erpOverride.custoMedio : custoCompra;
+  const prMinCtMedio = (1-somaSaida) !== 0 ? custoMedioBase/(1-somaSaida) : 0;
 
   const somaCredCompra = credIcms+credIpi+credPis+credCofins+credFcp;
-  const prIdealCompra = (1-somaCredCompra) !== 0 ? (pv - custoVenda - pv*margemLucro)/(1-somaCredCompra) : 0;
+  const prIdealCompra = (!erpOverride && (1-somaCredCompra) !== 0) ? (pv - custoVenda - pv*margemLucro)/(1-somaCredCompra) : (pv - custoVenda - pv*margemLucro);
 
   // Render KPIs
   document.getElementById('outCustoTotal').textContent = 'R$ ' + fmt3(custoTotal);
@@ -360,9 +425,16 @@ function calcular(){
   document.getElementById('outPrMinCtMedio').textContent = fmt2(prMinCtMedio);
   document.getElementById('outPrIdealCompra').textContent = fmt2(prIdealCompra);
 
-  document.getElementById('breakdownCompra').innerHTML = linhasCompra.map(([l,v])=>
-    `<div class="comp-line"><span>${l}</span><span>${fmt3(v)}</span></div>`
-  ).join('') + `<div class="comp-line total"><span>(=) Custo de Compra</span><span>${fmt3(custoCompra)}</span></div>`;
+  if (erpOverride){
+    document.getElementById('breakdownCompra').innerHTML =
+      `<div class="comp-line"><span>Preço de Compra (última compra)</span><span>${fmt3(pc)}</span></div>` +
+      `<div class="comp-line"><span>Custo Médio (ERP)</span><span>${fmt3(erpOverride.custoMedio)}</span></div>` +
+      `<div class="comp-line total"><span>(=) Custo de Compra (direto do ERP)</span><span>${fmt3(custoCompra)}</span></div>`;
+  } else {
+    document.getElementById('breakdownCompra').innerHTML = linhasCompra.map(([l,v])=>
+      `<div class="comp-line"><span>${l}</span><span>${fmt3(v)}</span></div>`
+    ).join('') + `<div class="comp-line total"><span>(=) Custo de Compra</span><span>${fmt3(custoCompra)}</span></div>`;
+  }
 
   document.getElementById('breakdownVenda').innerHTML = linhasVenda.map(([l,v])=>
     `<div class="comp-line"><span>${l}</span><span>${fmt3(v)}</span></div>`
@@ -371,6 +443,130 @@ function calcular(){
 
 document.querySelectorAll('.calc').forEach(el => el.addEventListener('input', calcular));
 calcular();
+
+/* ================= ERP: busca de produto + seletor de unidade ================= */
+let ERP_PRODUTOS = null;   // { codigo: {d, m, u:{unidade:[precoCompra,custoCompra,custoMedio,precoVenda]}} }
+let ERP_UNIDADES = null;   // { "001": "Pet Maxi Inajar", ... }
+let ERP_INDEX = [];        // [ [codigo, descricaoLower, marcaLower] ]
+let produtoAtualCodigo = null;
+
+async function carregarDadosErp(){
+  try{
+    const [pRes, uRes] = await Promise.all([
+      fetch('produtos_data.json'),
+      fetch('unidades.json')
+    ]);
+    ERP_PRODUTOS = await pRes.json();
+    ERP_UNIDADES = await uRes.json();
+    ERP_INDEX = Object.keys(ERP_PRODUTOS).map(cod => {
+      const p = ERP_PRODUTOS[cod];
+      return [cod, (p.d||'').toLowerCase(), (p.m||'').toLowerCase()];
+    });
+  }catch(e){
+    console.error('Não foi possível carregar produtos_data.json / unidades.json. ' +
+      'Isso é esperado se você abriu o arquivo direto (file://) — hospede num servidor (ex: GitHub Pages) para a busca funcionar.', e);
+    const box = document.getElementById('resultadosBusca');
+    document.getElementById('buscaProduto').placeholder = 'Busca indisponível (precisa estar hospedado em http/https)';
+  }
+}
+carregarDadosErp();
+
+const inputBusca = document.getElementById('buscaProduto');
+const resultsBox = document.getElementById('resultadosBusca');
+const seletorUnidade = document.getElementById('seletorUnidade');
+const avisoErpCompra = document.getElementById('avisoErpCompra');
+const cardCompra = document.getElementById('cardCompra');
+
+let debounceTimer = null;
+inputBusca.addEventListener('input', () => {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    const termo = inputBusca.value.trim().toLowerCase();
+    if (!ERP_INDEX.length || termo.length < 2){
+      resultsBox.classList.remove('open');
+      resultsBox.innerHTML = '';
+      return;
+    }
+    const matches = [];
+    for (const [cod, desc, marca] of ERP_INDEX){
+      if (cod.includes(termo) || desc.includes(termo) || marca.includes(termo)){
+        matches.push(cod);
+        if (matches.length >= 30) break;
+      }
+    }
+    if (!matches.length){
+      resultsBox.innerHTML = '<div class="erp-result-item">Nenhum produto encontrado</div>';
+      resultsBox.classList.add('open');
+      return;
+    }
+    resultsBox.innerHTML = matches.map(cod => {
+      const p = ERP_PRODUTOS[cod];
+      return `<div class="erp-result-item" data-cod="${cod}"><span class="cod">${cod}</span>${p.d}${p.m ? ' — ' + p.m : ''}</div>`;
+    }).join('');
+    resultsBox.classList.add('open');
+  }, 150);
+});
+
+resultsBox.addEventListener('click', (e) => {
+  const item = e.target.closest('.erp-result-item');
+  if (!item || !item.dataset.cod) return;
+  selecionarProduto(item.dataset.cod);
+  resultsBox.classList.remove('open');
+});
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.erp-search-wrap')) resultsBox.classList.remove('open');
+});
+
+function selecionarProduto(codigo){
+  produtoAtualCodigo = codigo;
+  const p = ERP_PRODUTOS[codigo];
+  inputBusca.value = `${codigo} — ${p.d}`;
+  document.getElementById('produtoSelecionadoInfo').innerHTML =
+    `Selecionado: <b>${codigo} — ${p.d}${p.m ? ' — ' + p.m : ''}</b>`;
+
+  const unidadesDisponiveis = Object.keys(p.u).sort();
+  seletorUnidade.innerHTML = unidadesDisponiveis.map(u =>
+    `<option value="${u}">${u} — ${ERP_UNIDADES[u] || u}</option>`
+  ).join('');
+  seletorUnidade.disabled = false;
+  carregarUnidade(unidadesDisponiveis[0]);
+}
+
+seletorUnidade.addEventListener('change', () => {
+  if (produtoAtualCodigo) carregarUnidade(seletorUnidade.value);
+});
+
+function carregarUnidade(unidade){
+  if (!produtoAtualCodigo) return;
+  const p = ERP_PRODUTOS[produtoAtualCodigo];
+  const dados = p.u[unidade];
+  if (!dados) return;
+  const [precoCompra, custoCompra, custoMedio, precoVenda] = dados;
+
+  document.getElementById('produto').value = `${produtoAtualCodigo} — ${p.d}${p.m ? ' — ' + p.m : ''}`;
+  document.getElementById('precoCompra').value = precoCompra;
+  document.getElementById('precoVenda').value = precoVenda;
+
+  erpOverride = { custoCompra, custoMedio };
+  cardCompra.classList.add('erp-mode');
+  avisoErpCompra.style.display = 'block';
+  avisoErpCompra.textContent = `Modo ERP ativo — Custo de Compra (${fmt3(custoCompra)}) e Custo Médio (${fmt3(custoMedio)}) vêm direto do sistema. Os campos % abaixo estão desativados. Clique em "Limpar / modo manual" para editar livremente.`;
+
+  calcular();
+}
+
+document.getElementById('btnLimpar').addEventListener('click', () => {
+  produtoAtualCodigo = null;
+  erpOverride = null;
+  cardCompra.classList.remove('erp-mode');
+  avisoErpCompra.style.display = 'none';
+  seletorUnidade.disabled = true;
+  seletorUnidade.innerHTML = '<option value="">Selecione um produto primeiro</option>';
+  inputBusca.value = '';
+  document.getElementById('produtoSelecionadoInfo').innerHTML = '';
+  calcular();
+});
 </script>
 </body>
 </html>

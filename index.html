@@ -359,22 +359,25 @@ function calcular(){
         margemLucro = num('margemLucro')/100, abatCustoVenda = num('abatCustoVenda');
 
   // Composição custo de compra (simulação manual, a partir das %)
+  // Descontos e Outros Abatimentos reduzem a base ANTES dos créditos e do ICMS-ST/FCP-ST
+  // serem calculados (confirmado comparando com telas reais do ERP com desconto > 0).
+  const baseLiquidaCompra = pc*(1 - descontos - outrosAbat);
   const linhasCompra = [
     ['(+) Preço de Compra', pc],
     ['(+) Frete', pc*frete],
     ['(+) Seguro', pc*seguro],
     ['(+) Desp. Acessórias', pc*despAcess],
     ['(+) Outros Acréscimos', pc*outrosAcresc],
-    ['(+) ICMS ST Entrada', pc*(1+mvaE)*icmsStE],
-    ['(+) FCP ST Entrada', pc*(1+mvaE)*fcpStE],
+    ['(+) ICMS ST Entrada', baseLiquidaCompra*(1+mvaE)*icmsStE],
+    ['(+) FCP ST Entrada', baseLiquidaCompra*(1+mvaE)*fcpStE],
     ['(+) Subst. Tributária', pc*substTrib],
     ['(-) Descontos', -pc*descontos],
     ['(-) Outros Abatimentos', -pc*outrosAbat],
-    ['(-) Crédito ICMS', -pc*credIcms],
-    ['(-) Crédito IPI', -pc*credIpi],
-    ['(-) Crédito PIS', -pc*credPis],
-    ['(-) Crédito Cofins', -pc*credCofins],
-    ['(-) Crédito FCP', -pc*credFcp],
+    ['(-) Crédito ICMS', -baseLiquidaCompra*credIcms],
+    ['(-) Crédito IPI', -baseLiquidaCompra*credIpi],
+    ['(-) Crédito PIS', -baseLiquidaCompra*credPis],
+    ['(-) Crédito Cofins', -baseLiquidaCompra*credCofins],
+    ['(-) Crédito FCP', -baseLiquidaCompra*credFcp],
     ['(+/-) Dif. Custo', pc*difCusto],
   ];
   const custoCompraManual = linhasCompra.reduce((s,[,v])=>s+v,0);
@@ -406,8 +409,11 @@ function calcular(){
   const custoMedioBase = erpOverride ? erpOverride.custoMedio : custoCompra;
   const prMinCtMedio = (1-somaSaida) !== 0 ? custoMedioBase/(1-somaSaida) : 0;
 
-  const somaCredCompra = credIcms+credIpi+credPis+credCofins+credFcp;
-  const prIdealCompra = (!erpOverride && (1-somaCredCompra) !== 0) ? (pv - custoVenda - pv*margemLucro)/(1-somaCredCompra) : (pv - custoVenda - pv*margemLucro);
+  // Pr. Ideal p/ Compra: usa a proporção real Preço de Compra / Custo de Compra do próprio
+  // produto (em vez de tentar reconstruir % de créditos), então funciona igual em modo manual
+  // e em modo ERP, mesmo em produtos com ICMS-ST/MVA na entrada.
+  const alvoCustoVenda = pv - custoVenda - pv*margemLucro;
+  const prIdealCompra = custoCompra !== 0 ? pc * (alvoCustoVenda / custoCompra) : 0;
 
   // Render KPIs
   document.getElementById('outCustoTotal').textContent = 'R$ ' + fmt3(custoTotal);

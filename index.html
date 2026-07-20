@@ -340,7 +340,8 @@ function fmt3(v){ return v.toLocaleString('pt-BR',{minimumFractionDigits:3,maxim
 function fmt2(v){ return v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function fmtPct(v){ return (v*100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '%'; }
 
-let erpOverride = null; // {custoCompra, custoMedio} when a product+unit is loaded
+let erpCustoMedio = null; // custo médio do ERP (só usado no Pr. Mín. Ct. Médio), quando um produto está carregado
+let erpCustoCompra = null; // custo de compra EXATO do ERP, usado como fonte da verdade quando um produto está carregado
 
 function calcular(){
   const pc = num('precoCompra');
@@ -358,18 +359,19 @@ function calcular(){
         difVenda = num('difVenda')/100, stComplVenda = num('stComplVenda')/100,
         margemLucro = num('margemLucro')/100, abatCustoVenda = num('abatCustoVenda');
 
-  // Composição custo de compra (simulação manual, a partir das %)
-  // Descontos e Outros Abatimentos reduzem a base ANTES dos créditos e do ICMS-ST/FCP-ST
-  // serem calculados (confirmado comparando com telas reais do ERP com desconto > 0).
-  const baseLiquidaCompra = pc*(1 - descontos - outrosAbat);
+  // Composição custo de compra — mesma fórmula sempre (manual ou pré-preenchida pelo ERP).
+  // Descontos, Outros Abatimentos e o ICMS embutido (campo % ICMS ST Entrada / % FCP ST Entrada)
+  // reduzem a BASE DE CÁLCULO dos créditos (não geram linha de custo própria — confirmado
+  // comparando com telas reais: a composição do ERP nunca lista "ICMS ST Entrada" como linha,
+  // só afeta o valor dos créditos de PIS/Cofins). Subst. Tributária é um valor à parte, somado
+  // por fora, sem afetar a base de créditos.
+  const baseLiquidaCompra = pc*(1 - descontos - outrosAbat - icmsStE - fcpStE);
   const linhasCompra = [
     ['(+) Preço de Compra', pc],
     ['(+) Frete', pc*frete],
     ['(+) Seguro', pc*seguro],
     ['(+) Desp. Acessórias', pc*despAcess],
     ['(+) Outros Acréscimos', pc*outrosAcresc],
-    ['(+) ICMS ST Entrada', baseLiquidaCompra*(1+mvaE)*icmsStE],
-    ['(+) FCP ST Entrada', baseLiquidaCompra*(1+mvaE)*fcpStE],
     ['(+) Subst. Tributária', pc*substTrib],
     ['(-) Descontos', -pc*descontos],
     ['(-) Outros Abatimentos', -pc*outrosAbat],
@@ -381,7 +383,7 @@ function calcular(){
     ['(+/-) Dif. Custo', pc*difCusto],
   ];
   const custoCompraManual = linhasCompra.reduce((s,[,v])=>s+v,0);
-  const custoCompra = erpOverride ? erpOverride.custoCompra : custoCompraManual;
+  const custoCompra = erpCustoCompra !== null ? erpCustoCompra : custoCompraManual;
 
   // Composição custo de venda
   const linhasVenda = [
@@ -406,7 +408,7 @@ function calcular(){
   const somaSaida = debIcms+debIpi+debPis+debCofins+debFcp+custoOp+comissao+iss;
   const precoSugerido = (1-(somaSaida+margemLucro)) !== 0 ? custoCompra/(1-(somaSaida+margemLucro)) : 0;
   const precoMinimo = (1-somaSaida) !== 0 ? custoCompra/(1-somaSaida) : 0;
-  const custoMedioBase = erpOverride ? erpOverride.custoMedio : custoCompra;
+  const custoMedioBase = erpCustoMedio !== null ? erpCustoMedio : custoCompra;
   const prMinCtMedio = (1-somaSaida) !== 0 ? custoMedioBase/(1-somaSaida) : 0;
 
   // Pr. Ideal p/ Compra: usa a proporção real Preço de Compra / Custo de Compra do próprio
@@ -431,14 +433,12 @@ function calcular(){
   document.getElementById('outPrMinCtMedio').textContent = fmt2(prMinCtMedio);
   document.getElementById('outPrIdealCompra').textContent = fmt2(prIdealCompra);
 
-  if (erpOverride){
-    const reducoes = pc - custoCompra;
+  if (erpCustoCompra !== null){
     document.getElementById('breakdownCompra').innerHTML =
       `<div class="comp-line"><span>Preço de Compra (última compra)</span><span>${fmt3(pc)}</span></div>` +
-      `<div class="comp-line"><span>(-) Descontos + Créditos + Ajustes (ERP)*</span><span>-${fmt3(reducoes)}</span></div>` +
-      `<div class="comp-line"><span>Custo Médio (ERP)</span><span>${fmt3(erpOverride.custoMedio)}</span></div>` +
+      `<div class="comp-line"><span>Custo Médio (ERP)</span><span>${fmt3(erpCustoMedio)}</span></div>` +
       `<div class="comp-line total"><span>(=) Custo de Compra (direto do ERP)</span><span>${fmt3(custoCompra)}</span></div>` +
-      `<div class="comp-line" style="font-size:10.5px;color:var(--ink-soft);border-bottom:none;">* As tabelas exportadas trazem o valor já calculado pelo ERP, não o % de desconto/crédito individual — por isso aparece só o total agregado aqui.</div>`;
+      `<div class="comp-line" style="font-size:10.5px;color:var(--ink-soft);border-bottom:none;">As duas tabelas exportadas não trazem o detalhamento por % (desconto/ICMS-ST) de forma confiável por produto — por isso o valor acima vem direto do sistema, e os campos % ao lado servem só para simular cenários manualmente (não refletem necessariamente os % reais dessa compra).</div>`;
   } else {
     document.getElementById('breakdownCompra').innerHTML = linhasCompra.map(([l,v])=>
       `<div class="comp-line"><span>${l}</span><span>${fmt3(v)}</span></div>`
@@ -551,24 +551,47 @@ function carregarUnidade(unidade){
   const p = ERP_PRODUTOS[produtoAtualCodigo];
   const dados = p.u[unidade];
   if (!dados) return;
-  const [precoCompra, custoCompra, custoMedio, precoVenda] = dados;
+  const [precoCompra, custoCompra, custoMedio, precoVenda, percdesc, aliqpis, aliqcofins] = dados;
 
   document.getElementById('produto').value = `${produtoAtualCodigo} — ${p.d}${p.m ? ' — ' + p.m : ''}`;
   document.getElementById('precoCompra').value = precoCompra;
   document.getElementById('precoVenda').value = precoVenda;
 
-  erpOverride = { custoCompra, custoMedio };
-  cardCompra.classList.add('erp-mode');
+  // Zera os campos que não temos como saber por produto (ICMS-ST, MVA, outros créditos)
+  ['mvaEntrada','icmsStEntrada','fcpStEntrada','credIcms','credIpi','credFcp',
+   'frete','seguro','despAcess','outrosAcresc','outrosAbat','difCusto',
+   'substTrib'].forEach(id => document.getElementById(id).value = 0);
+
+  // % Descontos, % Crédito PIS e % Crédito Cofins: valores REAIS da última nota de
+  // compra (tabela movprodd), quando encontrados. Quando não encontrados (compra mais
+  // antiga que 2023, fora da janela exportada), usa os padrões da empresa.
+  const temDadosReais = !(percdesc === 0 && aliqpis === 1.65 && aliqcofins === 7.6);
+  document.getElementById('descontos').value = percdesc.toFixed(3);
+  document.getElementById('credPis').value = aliqpis.toFixed(3);
+  document.getElementById('credCofins').value = aliqcofins.toFixed(3);
+  document.getElementById('debPis').value = aliqpis.toFixed(3);
+  document.getElementById('debCofins').value = aliqcofins.toFixed(3);
+
+  erpCustoCompra = custoCompra;
+  erpCustoMedio = custoMedio;
   avisoErpCompra.style.display = 'block';
-  avisoErpCompra.textContent = `Modo ERP ativo — Custo de Compra (${fmt3(custoCompra)}) e Custo Médio (${fmt3(custoMedio)}) vêm direto do sistema. Os campos % abaixo estão desativados. Clique em "Limpar / modo manual" para editar livremente.`;
+  if (temDadosReais){
+    avisoErpCompra.textContent =
+      `% Descontos (${percdesc.toFixed(2)}%), % Crédito PIS (${aliqpis.toFixed(2)}%) e % Crédito Cofins (${aliqcofins.toFixed(2)}%) vêm da última nota de compra real (tabela movprodd). ` +
+      `Custo de Compra (${fmt3(custoCompra)}) e Custo Médio (${fmt3(custoMedio)}) vêm direto do ERP. ICMS-ST/MVA continuam não disponíveis por produto.`;
+  } else {
+    avisoErpCompra.textContent =
+      `Não encontramos a nota de compra desse produto no período exportado (2023-2026) — % Descontos ficou em 0% e Créditos PIS/Cofins nos padrões da empresa (1,65%/7,6%). ` +
+      `Custo de Compra (${fmt3(custoCompra)}) e Custo Médio (${fmt3(custoMedio)}) continuam exatos, vindos direto do ERP.`;
+  }
 
   calcular();
 }
 
 document.getElementById('btnLimpar').addEventListener('click', () => {
+  erpCustoCompra = null;
   produtoAtualCodigo = null;
-  erpOverride = null;
-  cardCompra.classList.remove('erp-mode');
+  erpCustoMedio = null;
   avisoErpCompra.style.display = 'none';
   seletorUnidade.disabled = true;
   seletorUnidade.innerHTML = '<option value="">Selecione um produto primeiro</option>';

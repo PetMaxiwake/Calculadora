@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculadora de Custos e Lucratividade — Pet Maxi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #f2f4f3;
+    --surface: #ffffff;
+    --ink: #16241f;
+    --ink-soft: #55645d;
+    --line: #dde3e0;
+    --accent: #1f6e5c;
+    --accent-soft: #e4f1ec;
+    --input-bg: #fff9e6;
+    --input-border: #e8d68a;
+    --profit: #1f7a4d;
+    --loss: #b03a2e;
+    --panel: #0e2e26;
+    --panel-ink: #eef7f3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 20px 60px;}
+  header.top{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:22px;flex-wrap:wrap;gap:12px;
+  }
+  .brand{display:flex;align-items:baseline;gap:10px;}
+  .brand h1{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:22px;font-weight:700;margin:0;letter-spacing:-0.01em;
+  }
+  .brand span.tag{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent);
+    background:var(--accent-soft);padding:3px 8px;border-radius:20px;
+  }
+  .product-row{
+    background:var(--surface);border:1px solid var(--line);border-radius:10px;
+    padding:12px 16px;display:grid;grid-template-columns:2fr 1.3fr 90px;gap:12px;margin-bottom:22px;
+  }
+  .product-row label{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);display:block;margin-bottom:4px;}
+  .product-row input{width:100%;border:1px solid var(--line);border-radius:6px;padding:7px 9px;font-family:'Inter',sans-serif;font-size:13px;background:#fbfbfa;}
+
+  .grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr 340px;
+    gap:18px;
+    align-items:start;
+  }
+  @media (max-width:980px){ .grid{grid-template-columns:1fr 1fr;} .results{grid-column:1/-1;} }
+  @media (max-width:680px){ .grid{grid-template-columns:1fr;} }
+
+  .card{
+    background:var(--surface);border:1px solid var(--line);border-radius:12px;
+    padding:18px 18px 8px;
+  }
+  .card h2{
+    font-family:'Space Grotesk',sans-serif;font-size:14px;margin:0 0 14px;
+    display:flex;align-items:center;gap:8px;color:var(--ink);
+  }
+  .card h2 .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);}
+  .field{
+    display:grid;grid-template-columns:1fr 108px;align-items:center;
+    padding:7px 0;border-bottom:1px dashed var(--line);gap:8px;
+  }
+  .field:last-of-type{border-bottom:none;}
+  .field label{font-size:12.5px;color:var(--ink);line-height:1.25;}
+  .field .unit-wrap{position:relative;}
+  .field input{
+    width:100%;text-align:right;border:1px solid var(--input-border);
+    background:var(--input-bg);border-radius:6px;padding:6px 22px 6px 8px;
+    font-family:'IBM Plex Mono',monospace;font-size:13px;color:#5a4a00;
+  }
+  .field input:focus{outline:2px solid var(--accent);outline-offset:1px;}
+  .field .suffix{
+    position:absolute;right:7px;top:50%;transform:translateY(-50%);
+    font-size:11px;color:#8a7a2a;pointer-events:none;
+  }
+
+  .subhead{
+    font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-soft);
+    margin:16px 0 4px;
+  }
+
+  .results{
+    background:var(--panel);color:var(--panel-ink);border-radius:12px;padding:20px;
+    position:sticky;top:20px;
+  }
+  .results h2{
+    font-family:'Space Grotesk',sans-serif;font-size:14px;margin:0 0 14px;color:#fff;
+  }
+  .kpi{margin-bottom:14px;}
+  .kpi .label{font-size:11px;color:#a9c4bb;text-transform:uppercase;letter-spacing:.05em;}
+  .kpi .value{
+    font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:#fff;
+  }
+  .kpi .value.profit{color:#7be3a8;}
+  .kpi .value.loss{color:#ff9d8f;}
+  .divider{height:1px;background:rgba(255,255,255,.14);margin:16px 0;}
+  .row-line{
+    display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0;
+    border-bottom:1px solid rgba(255,255,255,.08);
+  }
+  .row-line span:last-child{font-family:'IBM Plex Mono',monospace;}
+  .row-line.total{font-weight:600;border-bottom:none;padding-top:8px;}
+
+  details{margin-top:16px;}
+  details summary{
+    cursor:pointer;font-size:12px;color:#a9c4bb;list-style:none;
+    display:flex;align-items:center;gap:6px;
+  }
+  details summary::-webkit-details-marker{display:none;}
+  details summary::before{content:"▸";transition:transform .15s;}
+  details[open] summary::before{transform:rotate(90deg);}
+  details .breakdown{padding-top:10px;}
+
+  footer.hint{
+    margin-top:26px;font-size:11.5px;color:var(--ink-soft);line-height:1.6;
+    border-top:1px solid var(--line);padding-top:14px;
+  }
+  footer.hint b{color:var(--ink);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <h1>Calculadora de Custos e Lucratividade</h1>
+      <span class="tag">Pet Maxi</span>
+    </div>
+  </header>
+
+  <div class="product-row">
+    <div>
+      <label>Produto</label>
+      <input id="produto" value="1958151 — Golden Form Ad.Carne M.Bites 3kg — Premier">
+    </div>
+    <div>
+      <label>Fornecedor</label>
+      <input id="fornecedor" value="Premier Pet Comercial Ltda">
+    </div>
+    <div>
+      <label>Qtd. Emb.</label>
+      <input id="qtdEmb" type="number" value="1" min="1">
+    </div>
+  </div>
+
+  <div class="grid">
+
+    <!-- COMPRA -->
+    <div class="card">
+      <h2><span class="dot"></span>Custo de Compra</h2>
+
+      <div class="field"><label>Preço de Compra (R$)</label>
+        <div class="unit-wrap"><input class="calc" id="precoCompra" type="number" step="0.001" value="35.840"><span class="suffix">R$</span></div>
+      </div>
+
+      <div class="subhead">Substituição Tributária (entrada)</div>
+      <div class="field"><label>% MVA Entrada</label><div class="unit-wrap"><input class="calc" id="mvaEntrada" type="number" step="0.01" value="0"><span class="suffix">%</span></div></div>
+      <div class="field"><label>% ICMS ST Entrada</label><div class="unit-wrap"><input class="calc" id="icmsStEntrada" type="number" step="0.01" value="0"><span class="suffix">%</span></div></div>
+      <div class="field"><label>% FCP ST Entrada</label><div class="unit-wrap"><input class="calc" id="fcpStEntrada" type="number" step="0.01" value="0"><span class="suffix">%</span></div></div>
+
+      <div class="subhead">Créditos</div>
+      <div class="field"><label>% Crédito ICMS</label><div class="unit-wrap"><input class="calc" id="credIcms" type="number" step="0.001" value="0"><span class="suffix">%</span></div></div>
+      <div class="field"><label>% Crédito IPI</label><div class="unit-wrap"><input class="calc" id="credIpi" type="number" step="0.001" value="0"><span class="suffix">%</span></div></div>
+      <div class="field"><label>% Crédito PIS</label><div class="unit-wrap"><input class="calc" id="credPis" type="number" step="0.001" value="1.650"><span class="suffix">%</span></div></div>
+      <div class="field"><label>% Crédito Cofins</label><div class="unit-wrap"><input class="calc" id="credCofins" type="number" step="0.001" value="7.600"><span class="suffix">%</span></div></div>
+      <div class="field"><label>% Crédito FCP</label><div class="unit-wrap"><input class="calc" id="credFcp" type="number" step="0.001" value="0"><span class="suffix">%</span></div></div>
+
+      <div class="subhead">Outros acréscimos / abatimentos</div>
+      <div class="field"><label>% Frete</label><div class="unit-wrap"><input class="calc" id="frete" type="number" step="0.001" value="0"><span class="suffix">%</span></div></div>
+      <div class="field"><label>% Seguro</label><div class="unit-wrap"><input class="calc" id="seguro" type="number" step="0.001" value="0"><span class="suffix">%</span></div></div>
+      <div class="field"><label>% Subst. Tributária</label><div class="unit-wrap"><input class="calc" id="substTrib" type="number" step="0.001" value="0"><span class="suffix">%</span></div></div>
+      <div class="field"><label>% Descontos</label><div class="unit-wrap"><input class="calc" id="descontos" type="number" step="0.001" value="0"><span class="suffix">%</span></div></div>
+      <div class="field"><label>% Desp. Acessórias</label><div class="unit-wrap"><input class="calc" id="despAcess" type="number" step="0.001" value="0"><span class="suffix">%</span></div></div>
+      <div class="field"><label>% Outros Acréscimos</label><div class="unit-wrap"><input class="calc" id="outrosAcresc" type="number" step="0.001" value="0"><span class="suffix">%</span></div></div>
+      <div class="field"><label>% Outros Abatimentos</label><div class="unit-wrap"><input class="calc" id="outrosAbat" type="number" step="0.001" value="0"><span class="suffix">%</span></div></div>
+      <div class="field"><label>% Dif. Custo</label><div class="unit-wrap"><input class="calc" id="difCusto" type="number" step="0.001" value="0"><span class="suffix">%</span></div></div>
+    </div>
+
+    <!-- VENDA -->
+    <div class="card">
+      <h2><span class="dot" style="background:#b8873a;"></span>Custo de Venda</h2>
+
+      <div class="field"><label>Preço de Venda (R$)</label>
+        <div class="unit-wrap"><input class="calc" id="precoVenda" type="number" step="0.01" value="56.99"><span class="suffix">R$</span></div>
+      </div>
+
+      <div class="subhead">Substituição Tributária (saída)</div>
+      <div class="field"><label>% MVA Saída</label><div class="unit-wrap"><input class="calc" id="mvaSaida" type="number" step="0.01" value="0"><span class="suffix">%</span></div></div>
+      <div class="field"><label>% ICMS ST Saída</label><div class="unit-wrap"><input class="calc" id="icmsStSaida" type="number" step="0.01" value="18"><span class="suffix">%</span></div></div>
+      <div class="field"><label>% FCP ST Saída</label><div class="unit-wrap"><input class="calc" id="fcpStSaida" type="number" step="0.01" value="0"><span class="suffix">%</span></div></div>
+      <div class="field"><label>% Red. BC ST Saída</label><div class="unit-wrap"><input class="calc" id="redBcStSaida" type="number" step="0.01" value="0"><span class="suffix">%</span></div></div>
+
+      <div class="subhead">Débitos</div>
+      <div class="field"><label>% Débito ICMS</label><div class="unit-wrap"><input class="calc" id="debIcms" type="number" step="0.001" value="0"><span class="suffix">%</span></div></div>
+      <div class="field"><label>% Débito IPI</label><div class="unit-wrap"><input class="calc" id="debIpi" type="number" step="0.001" value="0"><span class="suffix">%</span></div></div>
+      <div class="field"><label>% Débito PIS</label><div class="unit-wrap"><input class="calc" id="debPis" type="number" step="0.001" value="1.650"><span class="suffix">%</span></div></div>
+      <div class="field"><label>% Débito Cofins</label><div class="unit-wrap"><input class="calc" id="debCofins" type="number" step="0.001" value="7.600"><span class="suffix">%</span></div></div>
+      <div class="field"><label>% Débito FCP</label><div class="unit-wrap"><input class="calc" id="debFcp" type="number" step="0.001" value="0"><span class="suffix">%</span></div></div>
+
+      <div class="subhead">Custos de venda / margem</div>
+      <div class="field"><label>% Custo Operacional</label><div class="unit-wrap"><input class="calc" id="custoOperacional" type="number" step="0.001" value="13.000"><span class="suffix">%</span></div></div>
+      <div class="field"><label>% Comissão</label><div class="unit-wrap"><input class="calc" id="comissao" type="number" step="0.001" value="0"><span class="suffix">%</span></div></div>
+      <div class="field"><label>% ISS</label><div class="unit-wrap"><input class="calc" id="iss" type="number" step="0.001" value="0"><span class="suffix">%</span></div></div>
+      <div class="field"><label>% Dif. Venda</label><div class="unit-wrap"><input class="calc" id="difVenda" type="number" step="0.001" value="0"><span class="suffix">%</span></div></div>
+      <div class="field"><label>% ST Compl. Venda</label><div class="unit-wrap"><input class="calc" id="stComplVenda" type="number" step="0.001" value="0"><span class="suffix">%</span></div></div>
+      <div class="field"><label>% Margem Lucro desejada</label><div class="unit-wrap"><input class="calc" id="margemLucro" type="number" step="0.001" value="0"><span class="suffix">%</span></div></div>
+      <div class="field"><label>Abat. Custo Venda (R$)</label><div class="unit-wrap"><input class="calc" id="abatCustoVenda" type="number" step="0.01" value="0"><span class="suffix">R$</span></div></div>
+    </div>
+
+    <!-- RESULTADOS -->
+    <div class="results">
+      <h2>Custos / Lucratividade</h2>
+
+      <div class="kpi"><div class="label">Custo Total</div><div class="value" id="outCustoTotal">R$ 0,000</div></div>
+      <div class="kpi"><div class="label">Valor Lucro</div><div class="value" id="outValorLucro">R$ 0,00</div></div>
+      <div class="kpi"><div class="label">Percentual Lucro</div><div class="value" id="outPercLucro">0,00%</div></div>
+
+      <div class="divider"></div>
+
+      <div class="row-line"><span>Custo de Compra</span><span id="outCustoCompra">0,000</span></div>
+      <div class="row-line"><span>Custo de Venda</span><span id="outCustoVenda">0,000</span></div>
+      <div class="row-line total"><span>Preço Sugerido</span><span id="outPrecoSugerido">0,00</span></div>
+      <div class="row-line"><span>Preço Mínimo</span><span id="outPrecoMinimo">0,00</span></div>
+      <div class="row-line"><span>Pr. Mín. Ct. Médio*</span><span id="outPrMinCtMedio">0,00</span></div>
+      <div class="row-line total"><span>Pr. Ideal p/ Compra</span><span id="outPrIdealCompra">0,00</span></div>
+
+      <details>
+        <summary>Ver composição do custo de compra</summary>
+        <div class="breakdown" id="breakdownCompra"></div>
+      </details>
+      <details>
+        <summary>Ver composição do custo de venda</summary>
+        <div class="breakdown" id="breakdownVenda"></div>
+      </details>
+    </div>
+
+  </div>
+
+  <footer class="hint">
+    * <b>Pr. Mín. Ct. Médio</b> replica o Preço Mínimo pois esta calculadora não controla um custo médio de estoque separado.
+    O ICMS ST está simplificado como Base = Preço × (1+MVA) sem descontar o ICMS próprio da operação anterior.
+    Todos os campos com fundo amarelo podem ser alterados livremente para simular cenários — os resultados recalculam em tempo real, sem enviar dados para nenhum servidor.
+  </footer>
+
+</div>
+
+<script>
+function num(id){ const v = parseFloat(document.getElementById(id).value); return isNaN(v) ? 0 : v; }
+function fmt3(v){ return v.toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3}); }
+function fmt2(v){ return v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtPct(v){ return (v*100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '%'; }
+
+function calcular(){
+  const pc = num('precoCompra');
+  const mvaE = num('mvaEntrada')/100, icmsStE = num('icmsStEntrada')/100, fcpStE = num('fcpStEntrada')/100;
+  const credIcms = num('credIcms')/100, credIpi = num('credIpi')/100, credPis = num('credPis')/100,
+        credCofins = num('credCofins')/100, credFcp = num('credFcp')/100;
+  const frete = num('frete')/100, seguro = num('seguro')/100, substTrib = num('substTrib')/100,
+        descontos = num('descontos')/100, despAcess = num('despAcess')/100,
+        outrosAcresc = num('outrosAcresc')/100, outrosAbat = num('outrosAbat')/100, difCusto = num('difCusto')/100;
+
+  const pv = num('precoVenda');
+  const debIcms = num('debIcms')/100, debIpi = num('debIpi')/100, debPis = num('debPis')/100,
+        debCofins = num('debCofins')/100, debFcp = num('debFcp')/100;
+  const custoOp = num('custoOperacional')/100, comissao = num('comissao')/100, iss = num('iss')/100,
+        difVenda = num('difVenda')/100, stComplVenda = num('stComplVenda')/100,
+        margemLucro = num('margemLucro')/100, abatCustoVenda = num('abatCustoVenda');
+
+  // Composição custo de compra
+  const linhasCompra = [
+    ['(+) Preço de Compra', pc],
+    ['(+) Frete', pc*frete],
+    ['(+) Seguro', pc*seguro],
+    ['(+) Desp. Acessórias', pc*despAcess],
+    ['(+) Outros Acréscimos', pc*outrosAcresc],
+    ['(+) ICMS ST Entrada', pc*(1+mvaE)*icmsStE],
+    ['(+) FCP ST Entrada', pc*(1+mvaE)*fcpStE],
+    ['(+) Subst. Tributária', pc*substTrib],
+    ['(-) Descontos', -pc*descontos],
+    ['(-) Outros Abatimentos', -pc*outrosAbat],
+    ['(-) Crédito ICMS', -pc*credIcms],
+    ['(-) Crédito IPI', -pc*credIpi],
+    ['(-) Crédito PIS', -pc*credPis],
+    ['(-) Crédito Cofins', -pc*credCofins],
+    ['(-) Crédito FCP', -pc*credFcp],
+    ['(+/-) Dif. Custo', pc*difCusto],
+  ];
+  const custoCompra = linhasCompra.reduce((s,[,v])=>s+v,0);
+
+  // Composição custo de venda
+  const linhasVenda = [
+    ['(+) Débito ICMS', pv*debIcms],
+    ['(+) Débito IPI', pv*debIpi],
+    ['(+) Débito PIS', pv*debPis],
+    ['(+) Débito Cofins', pv*debCofins],
+    ['(+) Débito FCP', pv*debFcp],
+    ['(+) Custo Operacional', pv*custoOp],
+    ['(+) Comissão', pv*comissao],
+    ['(+) ISS', pv*iss],
+    ['(+) Dif. Venda', pv*difVenda],
+    ['(+) ST Compl. Venda', pv*stComplVenda],
+    ['(-) Abat. Custo Venda', -abatCustoVenda],
+  ];
+  const custoVenda = linhasVenda.reduce((s,[,v])=>s+v,0);
+
+  const custoTotal = custoCompra + custoVenda;
+  const valorLucro = pv - custoTotal;
+  const percLucro = pv !== 0 ? valorLucro / pv : 0;
+
+  const somaSaida = debIcms+debIpi+debPis+debCofins+debFcp+custoOp+comissao+iss;
+  const precoSugerido = (1-(somaSaida+margemLucro)) !== 0 ? custoCompra/(1-(somaSaida+margemLucro)) : 0;
+  const precoMinimo = (1-somaSaida) !== 0 ? custoCompra/(1-somaSaida) : 0;
+  const prMinCtMedio = precoMinimo;
+
+  const somaCredCompra = credIcms+credIpi+credPis+credCofins+credFcp;
+  const prIdealCompra = (1-somaCredCompra) !== 0 ? (pv - custoVenda - pv*margemLucro)/(1-somaCredCompra) : 0;
+
+  // Render KPIs
+  document.getElementById('outCustoTotal').textContent = 'R$ ' + fmt3(custoTotal);
+  const luEl = document.getElementById('outValorLucro');
+  luEl.textContent = 'R$ ' + fmt2(valorLucro);
+  luEl.className = 'value ' + (valorLucro >= 0 ? 'profit' : 'loss');
+  const pcEl = document.getElementById('outPercLucro');
+  pcEl.textContent = fmtPct(percLucro);
+  pcEl.className = 'value ' + (percLucro >= 0 ? 'profit' : 'loss');
+
+  document.getElementById('outCustoCompra').textContent = fmt3(custoCompra);
+  document.getElementById('outCustoVenda').textContent = fmt3(custoVenda);
+  document.getElementById('outPrecoSugerido').textContent = fmt2(precoSugerido);
+  document.getElementById('outPrecoMinimo').textContent = fmt2(precoMinimo);
+  document.getElementById('outPrMinCtMedio').textContent = fmt2(prMinCtMedio);
+  document.getElementById('outPrIdealCompra').textContent = fmt2(prIdealCompra);
+
+  document.getElementById('breakdownCompra').innerHTML = linhasCompra.map(([l,v])=>
+    `<div class="row-line"><span>${l}</span><span>${fmt3(v)}</span></div>`
+  ).join('') + `<div class="row-line total"><span>(=) Custo de Compra</span><span>${fmt3(custoCompra)}</span></div>`;
+
+  document.getElementById('breakdownVenda').innerHTML = linhasVenda.map(([l,v])=>
+    `<div class="row-line"><span>${l}</span><span>${fmt3(v)}</span></div>`
+  ).join('') + `<div class="row-line total"><span>(=) Custo de Venda</span><span>${fmt3(custoVenda)}</span></div>`;
+}
+
+document.querySelectorAll('.calc').forEach(el => el.addEventListener('input', calcular));
+calcular();
+</script>
+</body>
+</html>

@@ -432,10 +432,13 @@ function calcular(){
   document.getElementById('outPrIdealCompra').textContent = fmt2(prIdealCompra);
 
   if (erpOverride){
+    const reducoes = pc - custoCompra;
     document.getElementById('breakdownCompra').innerHTML =
       `<div class="comp-line"><span>Preço de Compra (última compra)</span><span>${fmt3(pc)}</span></div>` +
+      `<div class="comp-line"><span>(-) Descontos + Créditos + Ajustes (ERP)*</span><span>-${fmt3(reducoes)}</span></div>` +
       `<div class="comp-line"><span>Custo Médio (ERP)</span><span>${fmt3(erpOverride.custoMedio)}</span></div>` +
-      `<div class="comp-line total"><span>(=) Custo de Compra (direto do ERP)</span><span>${fmt3(custoCompra)}</span></div>`;
+      `<div class="comp-line total"><span>(=) Custo de Compra (direto do ERP)</span><span>${fmt3(custoCompra)}</span></div>` +
+      `<div class="comp-line" style="font-size:10.5px;color:var(--ink-soft);border-bottom:none;">* As tabelas exportadas trazem o valor já calculado pelo ERP, não o % de desconto/crédito individual — por isso aparece só o total agregado aqui.</div>`;
   } else {
     document.getElementById('breakdownCompra').innerHTML = linhasCompra.map(([l,v])=>
       `<div class="comp-line"><span>${l}</span><span>${fmt3(v)}</span></div>`

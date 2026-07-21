@@ -35,7 +35,8 @@
     display:flex;align-items:center;justify-content:space-between;
     margin-bottom:22px;flex-wrap:wrap;gap:12px;
   }
-  .brand{display:flex;align-items:baseline;gap:10px;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand-logo{height:34px;width:34px;object-fit:contain;}
   .brand h1{
     font-family:'Space Grotesk',sans-serif;
     font-size:22px;font-weight:700;margin:0;letter-spacing:-0.01em;
@@ -185,6 +186,7 @@
 
   <header class="top">
     <div class="brand">
+      <img src="petmaxi-logo.png" alt="Pet Maxi" class="brand-logo">
       <h1>Calculadora de Custos e Lucratividade</h1>
       <span class="tag">Pet Maxi</span>
     </div>
@@ -496,9 +498,10 @@ inputBusca.addEventListener('input', () => {
     for (const [cod, desc, marca] of ERP_INDEX){
       if (cod.includes(termo) || desc.includes(termo) || marca.includes(termo)){
         matches.push(cod);
-        if (matches.length >= 30) break;
       }
     }
+    matches.sort((a, b) => ERP_PRODUTOS[a].d.localeCompare(ERP_PRODUTOS[b].d, 'pt-BR'));
+    matches.length = Math.min(matches.length, 30);
     if (!matches.length){
       resultsBox.innerHTML = '<div class="erp-result-item">Nenhum produto encontrado</div>';
       resultsBox.classList.add('open');

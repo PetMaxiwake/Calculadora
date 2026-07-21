@@ -331,6 +331,7 @@ function fmtPct(v){ return (v*100).toLocaleString('pt-BR',{minimumFractionDigits
 
 let erpCustoMedio = null; // custo médio do ERP (só usado no Pr. Mín. Ct. Médio), quando um produto está carregado
 let erpCustoCompra = null; // custo de compra EXATO do ERP, usado como fonte da verdade quando um produto está carregado
+let usarCustoCompraErp = false; // true logo apos carregar um produto; vira false assim que o usuario editar manualmente um campo de compra
 
 // Guarda os últimos valores calculados (só leitura, usado pela simulação de mudança de
 // tributação de ICMS mais abaixo — não interfere em nada do cálculo principal).
@@ -375,7 +376,7 @@ function calcular(){
     ['(+/-) Dif. Custo', pc*difCusto],
   ];
   const custoCompraManual = linhasCompra.reduce((s,[,v])=>s+v,0);
-  const custoCompra = erpCustoCompra !== null ? erpCustoCompra : custoCompraManual;
+  const custoCompra = (erpCustoCompra !== null && usarCustoCompraErp) ? erpCustoCompra : custoCompraManual;
 
   // Composição custo de venda
   const linhasVenda = [
@@ -453,7 +454,12 @@ function calcular(){
 
 }
 
-document.querySelectorAll('.calc').forEach(el => el.addEventListener('input', calcular));
+document.querySelectorAll('.calc').forEach(el => {
+  el.addEventListener('input', () => {
+    if (el.closest('#cardCompra')) usarCustoCompraErp = false;
+    calcular();
+  });
+});
 calcular();
 
 /* ================= ERP: busca de produto + seletor de unidade ================= */
@@ -566,7 +572,8 @@ function carregarUnidade(unidade){
 
   // Zera os campos que ainda não temos como saber por produto
   ['fcpStEntrada','credIcms','credIpi','credFcp',
-   'frete','seguro','despAcess','outrosAcresc','outrosAbat','difCusto'].forEach(id => document.getElementById(id).value = 0);
+   'frete','seguro','despAcess','outrosAcresc','outrosAbat','difCusto',
+   'mvaSaida','icmsStSaida','fcpStSaida','redBcStSaida'].forEach(id => document.getElementById(id).value = 0);
 
   // % Custo Operacional padrão: 13% na unidade 001 (Freguesia/Inajar), 0% nas demais.
   // Sempre volta pra esse padrão ao carregar um produto/unidade — se o usuário editar
@@ -585,6 +592,7 @@ function carregarUnidade(unidade){
   document.getElementById('substTrib').value = subtrib.toFixed(3);
   document.getElementById('mvaEntrada').value = percmva.toFixed(3);
   document.getElementById('icmsStEntrada').value = subtribent.toFixed(3);
+  usarCustoCompraErp = true; // acabou de carregar do ERP: volta a confiar no valor exato ate' o usuario editar algo
 
   erpCustoCompra = custoCompra;
   erpCustoMedio = custoMedio;
@@ -605,6 +613,7 @@ function carregarUnidade(unidade){
 
 document.getElementById('btnLimpar').addEventListener('click', () => {
   erpCustoCompra = null;
+  usarCustoCompraErp = false;
   produtoAtualCodigo = null;
   erpCustoMedio = null;
   avisoErpCompra.style.display = 'none';

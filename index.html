@@ -547,38 +547,40 @@ function carregarUnidade(unidade){
   const p = ERP_PRODUTOS[produtoAtualCodigo];
   const dados = p.u[unidade];
   if (!dados) return;
-  const [precoCompra, custoCompra, custoMedio, precoVenda, percdesc, aliqpis, aliqcofins, encontrado, dtUltCompra] = dados;
+  const [precoCompra, custoCompra, custoMedio, precoVenda, percdesc, aliqpis, aliqcofins, encontrado, dtUltCompra, subtrib, percmva, subtribent] = dados;
 
   document.getElementById('produto').value = `${produtoAtualCodigo} — ${p.d}${p.m ? ' — ' + p.m : ''}`;
   document.getElementById('precoCompra').value = precoCompra;
   document.getElementById('precoVenda').value = precoVenda;
 
-  // Zera os campos que não temos como saber por produto (ICMS-ST, MVA, outros créditos)
-  ['mvaEntrada','icmsStEntrada','fcpStEntrada','credIcms','credIpi','credFcp',
-   'frete','seguro','despAcess','outrosAcresc','outrosAbat','difCusto',
-   'substTrib'].forEach(id => document.getElementById(id).value = 0);
+  // Zera os campos que ainda não temos como saber por produto
+  ['fcpStEntrada','credIcms','credIpi','credFcp',
+   'frete','seguro','despAcess','outrosAcresc','outrosAbat','difCusto'].forEach(id => document.getElementById(id).value = 0);
 
-  // % Descontos, % Crédito PIS e % Crédito Cofins: valores REAIS da última nota de
-  // compra (tabela movprodd), quando encontrados. Quando não encontrados (compra mais
-  // antiga que 2023, fora da janela exportada), usa os padrões da empresa.
+  // % Descontos, % Crédito PIS/Cofins, % Subst. Tributária, % MVA Entrada e % ICMS ST Entrada:
+  // valores REAIS da última nota de compra (tabela movprodd), quando encontrados. Quando não
+  // encontrados (compra mais antiga que 2023, fora da janela exportada), usa os padrões da empresa.
   const temDadosReais = encontrado === 1;
   document.getElementById('descontos').value = percdesc.toFixed(3);
   document.getElementById('credPis').value = aliqpis.toFixed(3);
   document.getElementById('credCofins').value = aliqcofins.toFixed(3);
   document.getElementById('debPis').value = aliqpis.toFixed(3);
   document.getElementById('debCofins').value = aliqcofins.toFixed(3);
+  document.getElementById('substTrib').value = subtrib.toFixed(3);
+  document.getElementById('mvaEntrada').value = percmva.toFixed(3);
+  document.getElementById('icmsStEntrada').value = subtribent.toFixed(3);
 
   erpCustoCompra = custoCompra;
   erpCustoMedio = custoMedio;
   const dtFormatada = dtUltCompra ? dtUltCompra.split('-').reverse().join('/') : 'data não disponível';
   avisoErpCompra.style.display = 'block';
   if (temDadosReais){
-    avisoErpCompra.textContent =
-      `Última compra considerada: ${dtFormatada}. % Descontos (${percdesc.toFixed(2)}%), % Crédito PIS (${aliqpis.toFixed(2)}%) e % Crédito Cofins (${aliqcofins.toFixed(2)}%) vêm dessa nota real (tabela movprodd). ` +
-      `Custo de Compra (${fmt3(custoCompra)}) e Custo Médio (${fmt3(custoMedio)}) vêm direto do ERP. ICMS-ST/MVA continuam não disponíveis por produto.`;
+    avisoErpCompra.innerHTML =
+      `<b>✓ Nota de compra encontrada</b> (${dtFormatada}) — % Descontos (${percdesc.toFixed(2)}%), % Crédito PIS (${aliqpis.toFixed(2)}%), % Crédito Cofins (${aliqcofins.toFixed(2)}%), % Subst. Tributária (${subtrib.toFixed(2)}%) e % MVA Entrada (${percmva.toFixed(2)}%) vêm dessa nota real.<br>` +
+      `Custo de Compra (${fmt3(custoCompra)}) e Custo Médio (${fmt3(custoMedio)}) vêm direto do ERP.`;
   } else {
-    avisoErpCompra.textContent =
-      `Última compra considerada: ${dtFormatada} — não encontramos a nota dessa data no período exportado (2023-2026), então % Descontos ficou em 0% e Créditos PIS/Cofins nos padrões da empresa (1,65%/7,6%). ` +
+    avisoErpCompra.innerHTML =
+      `<b>✗ Nota de compra não encontrada</b> na base exportada (última compra em ${dtFormatada}, fora do período 2023-2026 ou não localizada) — % Descontos, Subst. Tributária e MVA ficaram em 0%, e Créditos PIS/Cofins nos padrões da empresa (1,65%/7,6%).<br>` +
       `Custo de Compra (${fmt3(custoCompra)}) e Custo Médio (${fmt3(custoMedio)}) continuam exatos, vindos direto do ERP.`;
   }
 

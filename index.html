@@ -75,7 +75,7 @@
   .erp-results{
     position:absolute;top:100%;left:0;right:0;z-index:20;
     background:#fff;border:1px solid var(--line);border-radius:8px;
-    max-height:280px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.12);
+    max-height:420px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.12);
     display:none;margin-top:4px;
   }
   .erp-results.open{display:block;}
@@ -501,7 +501,8 @@ inputBusca.addEventListener('input', () => {
       }
     }
     matches.sort((a, b) => ERP_PRODUTOS[a].d.localeCompare(ERP_PRODUTOS[b].d, 'pt-BR'));
-    matches.length = Math.min(matches.length, 30);
+    const totalEncontrados = matches.length;
+    matches.length = Math.min(matches.length, 300);
     if (!matches.length){
       resultsBox.innerHTML = '<div class="erp-result-item">Nenhum produto encontrado</div>';
       resultsBox.classList.add('open');
@@ -510,7 +511,9 @@ inputBusca.addEventListener('input', () => {
     resultsBox.innerHTML = matches.map(cod => {
       const p = ERP_PRODUTOS[cod];
       return `<div class="erp-result-item" data-cod="${cod}"><span class="cod">${cod}</span>${p.d}${p.m ? ' — ' + p.m : ''}</div>`;
-    }).join('');
+    }).join('') + (totalEncontrados > matches.length
+      ? `<div class="erp-result-item" style="font-style:italic;color:var(--ink-soft);cursor:default;">Mostrando ${matches.length} de ${totalEncontrados} — digite mais letras para refinar</div>`
+      : '');
     resultsBox.classList.add('open');
   }, 150);
 });

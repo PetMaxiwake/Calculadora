@@ -395,6 +395,9 @@ let erpCustoCompra = null; // custo de compra EXATO do ERP, usado como fonte da 
 // Guarda os últimos valores calculados (só leitura, usado pela simulação de mudança de
 // tributação de ICMS mais abaixo — não interfere em nada do cálculo principal).
 let ultimoCalculo = { custoCompra: 0, custoVenda: 0, custoTotal: 0, precoCompra: 0, precoVenda: 0, debIcms: 0 };
+// Base FIXA da simulação de ICMS: só é atualizada quando um produto/unidade é carregado
+// (ou ao clicar em "Limpar"), nunca automaticamente ao editar campos da calculadora principal.
+let simulacaoBase = null;
 
 function calcular(){
   const pc = num('precoCompra');
@@ -512,8 +515,14 @@ function calcular(){
   htmlVenda += `<div class="comp-line total"><span>(=) Custo de Venda</span><span>${fmt3(custoVenda)}</span></div>`;
   document.getElementById('breakdownVenda').innerHTML = htmlVenda;
 
-  ultimoCalculo = { custoCompra, custoVenda, custoTotal, precoCompra: pc, precoVenda: pv, debIcms };
-  if (typeof atualizarSimulacaoIcms === 'function') atualizarSimulacaoIcms();
+  ultimoCalculo = {
+    custoCompra, custoVenda, custoTotal, precoCompra: pc, precoVenda: pv, debIcms: debIcms*100,
+    outrosAbat: outrosAbat*100, icmsStE: icmsStE*100, fcpStE: fcpStE*100,
+    frete: frete*100, seguro: seguro*100, despAcess: despAcess*100, outrosAcresc: outrosAcresc*100,
+    substTrib: substTrib*100, difCusto: difCusto*100,
+    credIpi: credIpi*100, credPis: credPis*100, credCofins: credCofins*100, credFcp: credFcp*100,
+  };
+  if (typeof atualizarSimulacaoIcms === 'function') atualizarSimulacaoIcms(); // usa a base fixa, não os campos atuais
 }
 
 document.querySelectorAll('.calc').forEach(el => el.addEventListener('input', calcular));
@@ -664,6 +673,7 @@ function carregarUnidade(unidade){
   }
 
   calcular();
+  simulacaoBase = { ...ultimoCalculo }; // fixa a base da simulação de ICMS neste momento (não muda mais)
 }
 
 document.getElementById('btnLimpar').addEventListener('click', () => {
@@ -675,6 +685,19 @@ document.getElementById('btnLimpar').addEventListener('click', () => {
   seletorUnidade.innerHTML = '<option value="">Selecione um produto primeiro</option>';
   inputBusca.value = '';
   document.getElementById('produtoSelecionadoInfo').innerHTML = '';
+  document.getElementById('produto').value = '';
+  document.getElementById('precoCompra').value = 0;
+  document.getElementById('precoVenda').value = 0;
+  ['mvaEntrada','icmsStEntrada','fcpStEntrada','credIcms','credIpi','credFcp',
+   'frete','seguro','despAcess','outrosAcresc','outrosAbat','difCusto',
+   'descontos','substTrib','debIcms','debIpi','debFcp','comissao','iss',
+   'difVenda','stComplVenda','margemLucro','abatCustoVenda'].forEach(id => document.getElementById(id).value = 0);
+  document.getElementById('credPis').value = '1.650';
+  document.getElementById('credCofins').value = '7.600';
+  document.getElementById('debPis').value = '1.650';
+  document.getElementById('debCofins').value = '7.600';
+  document.getElementById('custoOperacional').value = '13.000';
+  simulacaoBase = null;
   calcular();
 });
 
@@ -686,22 +709,25 @@ document.getElementById('btnLimpar').addEventListener('click', () => {
    (variável) na entrada?
 */
 function atualizarSimulacaoIcms(){
-  const pc = ultimoCalculo.precoCompra;
-  const pv = ultimoCalculo.precoVenda;
+  if (!simulacaoBase) simulacaoBase = { ...ultimoCalculo }; // primeira vez: usa o que já foi calculado até agora
+  const base = simulacaoBase;
+  const pc = base.precoCompra;
+  const pv = base.precoVenda;
   if (!pc || !pv) return;
 
   const icmsDebitoSaidaNovo = num('simDebIcmsSaida') / 100;
   const credIcmsEntradaNovo = num('simCredIcmsEntrada') / 100;
 
-  // Campos atuais da calculadora principal (lidos, nunca alterados)
-  const outrosAbat = num('outrosAbat')/100, icmsStE = num('icmsStEntrada')/100, fcpStE = num('fcpStEntrada')/100;
-  const frete = num('frete')/100, seguro = num('seguro')/100, despAcess = num('despAcess')/100,
-        outrosAcresc = num('outrosAcresc')/100, substTrib = num('substTrib')/100, difCusto = num('difCusto')/100;
-  const credIpi = num('credIpi')/100, credPis = num('credPis')/100, credCofins = num('credCofins')/100, credFcp = num('credFcp')/100;
+  // Campos FIXOS do momento em que o produto foi carregado (não mudam se você editar a
+  // calculadora principal depois — só mudam ao carregar outro produto/unidade ou "Limpar").
+  const outrosAbat = base.outrosAbat/100, icmsStE = base.icmsStE/100, fcpStE = base.fcpStE/100;
+  const frete = base.frete/100, seguro = base.seguro/100, despAcess = base.despAcess/100,
+        outrosAcresc = base.outrosAcresc/100, substTrib = base.substTrib/100, difCusto = base.difCusto/100;
+  const credIpi = base.credIpi/100, credPis = base.credPis/100, credCofins = base.credCofins/100, credFcp = base.credFcp/100;
 
-  // Novo Custo de Venda somando o novo Débito ICMS (substitui o % Débito ICMS atual, se houver)
-  const novoCustoVenda = ultimoCalculo.custoVenda + pv * (icmsDebitoSaidaNovo - ultimoCalculo.debIcms/100);
-  const custoCompraAlvo = ultimoCalculo.custoTotal - novoCustoVenda;
+  // Novo Custo de Venda somando o novo Débito ICMS (substitui o % Débito ICMS da base, se houver)
+  const novoCustoVenda = base.custoVenda + pv * (icmsDebitoSaidaNovo - base.debIcms/100);
+  const custoCompraAlvo = base.custoTotal - novoCustoVenda;
 
   // custoCompra(x): mesma fórmula da calculadora principal, com x = % desconto (variável a
   // resolver) e credIcmsEntradaNovo no lugar do crédito de ICMS de entrada.

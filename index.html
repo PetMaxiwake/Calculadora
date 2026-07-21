@@ -563,6 +563,11 @@ function carregarUnidade(unidade){
   ['fcpStEntrada','credIcms','credIpi','credFcp',
    'frete','seguro','despAcess','outrosAcresc','outrosAbat','difCusto'].forEach(id => document.getElementById(id).value = 0);
 
+  // % Custo Operacional padrão: 13% na unidade 001 (Freguesia/Inajar), 0% nas demais.
+  // Sempre volta pra esse padrão ao carregar um produto/unidade — se o usuário editar
+  // manualmente depois, fica assim até carregar outro produto ou trocar de unidade de novo.
+  document.getElementById('custoOperacional').value = (unidade === '001') ? '13.000' : '0.000';
+
   // % Descontos, % Crédito PIS/Cofins, % Subst. Tributária, % MVA Entrada e % ICMS ST Entrada:
   // valores REAIS da última nota de compra (tabela movprodd), quando encontrados. Quando não
   // encontrados (compra mais antiga que 2023, fora da janela exportada), usa os padrões da empresa.

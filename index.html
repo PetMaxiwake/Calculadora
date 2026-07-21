@@ -174,6 +174,35 @@
   }
   #cardCompra.erp-mode .field{opacity:.4;pointer-events:none;}
 
+  .sim-icms{
+    background:var(--surface);border:1px solid var(--line);border-radius:12px;
+    margin-top:18px;padding:0;
+  }
+  .sim-icms summary{
+    cursor:pointer;padding:14px 18px;font-family:'Space Grotesk',sans-serif;font-size:13.5px;
+    font-weight:600;color:var(--accent);list-style:none;user-select:none;
+  }
+  .sim-icms summary::-webkit-details-marker{display:none;}
+  .sim-icms-body{padding:0 18px 18px;}
+  .sim-icms-desc{font-size:12px;color:var(--ink-soft);line-height:1.5;margin:0 0 14px;}
+  .sim-icms-inputs{
+    display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;
+  }
+  @media (max-width:680px){ .sim-icms-inputs{grid-template-columns:1fr;} }
+  .sim-icms-result{
+    background:var(--panel);border-radius:10px;padding:16px 18px;color:var(--panel-ink);
+  }
+  .sim-kpi{margin-bottom:12px;}
+  .sim-kpi .label{font-size:11px;color:#a9c4bb;text-transform:uppercase;letter-spacing:.05em;}
+  .sim-kpi .value{font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:700;color:#7be3a8;}
+  .sim-detail-line{
+    display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0;
+    color:#eef7f3;border-bottom:1px solid rgba(255,255,255,.08);
+  }
+  .sim-detail-line span:first-child{color:#a9c4bb;}
+  .sim-detail-line span:last-child{font-family:'IBM Plex Mono',monospace;}
+  .sim-detail-line.total{border-bottom:none;border-top:1px solid rgba(255,255,255,.25);padding-top:8px;margin-top:2px;font-weight:600;}
+
   footer.hint{
     margin-top:26px;font-size:11.5px;color:var(--ink-soft);line-height:1.6;
     border-top:1px solid var(--line);padding-top:14px;
@@ -313,6 +342,38 @@
 
   </div>
 
+  <details class="sim-icms">
+    <summary>🔧 Simulação: Nova Tributação de ICMS (Crédito/Débito) — clique para abrir</summary>
+    <div class="sim-icms-body">
+      <p class="sim-icms-desc">
+        Quando o produto passar a ter ICMS normal (crédito na entrada e débito na saída, em vez do regime de
+        Substituição Tributária), quanto o fornecedor precisa dar de desconto para a margem continuar igual à
+        calculada acima? Esta simulação <b>só lê</b> os valores já calculados nesta página — não altera nada
+        no restante da calculadora.
+      </p>
+      <div class="sim-icms-inputs">
+        <div class="field" style="grid-template-columns:1fr 108px;">
+          <label>% ICMS Débito Saída (novo)</label>
+          <div class="unit-wrap"><input class="calc-sim" id="simDebIcmsSaida" type="number" step="0.01" value="18"><span class="suffix">%</span></div>
+        </div>
+        <div class="field" style="grid-template-columns:1fr 108px;">
+          <label>% ICMS Crédito Entrada (novo, variável)</label>
+          <div class="unit-wrap"><input class="calc-sim" id="simCredIcmsEntrada" type="number" step="0.01" value="0"><span class="suffix">%</span></div>
+        </div>
+      </div>
+      <div class="sim-icms-result">
+        <div class="sim-kpi">
+          <div class="label">Desconto necessário do fornecedor</div>
+          <div class="value" id="simDescontoNecessario">0,00%</div>
+        </div>
+        <div class="sim-detail-line"><span>Preço de Compra atual</span><span id="simPrecoCompraAtual">0,00</span></div>
+        <div class="sim-detail-line"><span>Novo Preço de Compra sugerido</span><span id="simNovoPrecoCompra">0,00</span></div>
+        <div class="sim-detail-line"><span>Custo de Venda (com novo ICMS)</span><span id="simNovoCustoVenda">0,000</span></div>
+        <div class="sim-detail-line total"><span>Custo Total resultante (confere com o atual)</span><span id="simCustoTotalConfere">0,000</span></div>
+      </div>
+    </div>
+  </details>
+
   <footer class="hint">
     <b>Modo ERP:</b> ao carregar um produto, o Custo de Compra e o Custo Médio vêm direto do banco (já calculados pelo sistema — sem estimativa de %). O Preço de Venda vem preenchido mas é editável para simular. O Preço Ideal p/ Compra, nesse modo, não desconta créditos de ICMS/IPI/PIS/Cofins na compra (não temos essa quebra por produto nas duas tabelas usadas).<br>
     <b>Modo manual</b> (sem produto carregado): todos os campos com fundo amarelo são livres para simular, e o Custo de Compra é calculado a partir das % informadas.<br>
@@ -330,6 +391,10 @@ function fmtPct(v){ return (v*100).toLocaleString('pt-BR',{minimumFractionDigits
 
 let erpCustoMedio = null; // custo médio do ERP (só usado no Pr. Mín. Ct. Médio), quando um produto está carregado
 let erpCustoCompra = null; // custo de compra EXATO do ERP, usado como fonte da verdade quando um produto está carregado
+
+// Guarda os últimos valores calculados (só leitura, usado pela simulação de mudança de
+// tributação de ICMS mais abaixo — não interfere em nada do cálculo principal).
+let ultimoCalculo = { custoCompra: 0, custoVenda: 0, custoTotal: 0, precoCompra: 0, precoVenda: 0, debIcms: 0 };
 
 function calcular(){
   const pc = num('precoCompra');
@@ -446,6 +511,9 @@ function calcular(){
   let htmlVenda = linhasVendaVisiveis.length ? linhasVendaVisiveis.map(fmtLine).join('') : semLinhas;
   htmlVenda += `<div class="comp-line total"><span>(=) Custo de Venda</span><span>${fmt3(custoVenda)}</span></div>`;
   document.getElementById('breakdownVenda').innerHTML = htmlVenda;
+
+  ultimoCalculo = { custoCompra, custoVenda, custoTotal, precoCompra: pc, precoVenda: pv, debIcms };
+  if (typeof atualizarSimulacaoIcms === 'function') atualizarSimulacaoIcms();
 }
 
 document.querySelectorAll('.calc').forEach(el => el.addEventListener('input', calcular));
@@ -609,6 +677,62 @@ document.getElementById('btnLimpar').addEventListener('click', () => {
   document.getElementById('produtoSelecionadoInfo').innerHTML = '';
   calcular();
 });
+
+/* ================= Simulação: Nova Tributação de ICMS (Crédito/Débito) =================
+   Só LÊ os valores já calculados (ultimoCalculo) e os campos atuais da calculadora
+   principal — não escreve em nenhum campo do cálculo principal. Pergunta: quanto de
+   desconto o fornecedor precisa dar para a margem continuar igual à calculada acima,
+   já considerando um novo % de Débito ICMS na saída e um novo % de Crédito ICMS
+   (variável) na entrada?
+*/
+function atualizarSimulacaoIcms(){
+  const pc = ultimoCalculo.precoCompra;
+  const pv = ultimoCalculo.precoVenda;
+  if (!pc || !pv) return;
+
+  const icmsDebitoSaidaNovo = num('simDebIcmsSaida') / 100;
+  const credIcmsEntradaNovo = num('simCredIcmsEntrada') / 100;
+
+  // Campos atuais da calculadora principal (lidos, nunca alterados)
+  const outrosAbat = num('outrosAbat')/100, icmsStE = num('icmsStEntrada')/100, fcpStE = num('fcpStEntrada')/100;
+  const frete = num('frete')/100, seguro = num('seguro')/100, despAcess = num('despAcess')/100,
+        outrosAcresc = num('outrosAcresc')/100, substTrib = num('substTrib')/100, difCusto = num('difCusto')/100;
+  const credIpi = num('credIpi')/100, credPis = num('credPis')/100, credCofins = num('credCofins')/100, credFcp = num('credFcp')/100;
+
+  // Novo Custo de Venda somando o novo Débito ICMS (substitui o % Débito ICMS atual, se houver)
+  const novoCustoVenda = ultimoCalculo.custoVenda + pv * (icmsDebitoSaidaNovo - ultimoCalculo.debIcms/100);
+  const custoCompraAlvo = ultimoCalculo.custoTotal - novoCustoVenda;
+
+  // custoCompra(x): mesma fórmula da calculadora principal, com x = % desconto (variável a
+  // resolver) e credIcmsEntradaNovo no lugar do crédito de ICMS de entrada.
+  function custoCompraSimulado(xPercent){
+    const x = xPercent / 100;
+    const baseLiquida = pc * (1 - x - outrosAbat - icmsStE - fcpStE);
+    return pc + pc*frete + pc*seguro + pc*despAcess + pc*outrosAcresc + pc*substTrib
+         - pc*x - pc*outrosAbat
+         - baseLiquida*(credIcmsEntradaNovo + credIpi + credPis + credCofins + credFcp)
+         + pc*difCusto;
+  }
+
+  // Função linear em x — resolve com 2 pontos
+  const y0 = custoCompraSimulado(0);
+  const y100 = custoCompraSimulado(100);
+  const slope = (y100 - y0) / 100;
+  const xSolucao = slope !== 0 ? (custoCompraAlvo - y0) / slope : 0;
+
+  const novoPrecoCompra = pc * (1 - xSolucao/100);
+  const custoCompraResultante = custoCompraSimulado(xSolucao);
+  const custoTotalResultante = custoCompraResultante + novoCustoVenda;
+
+  document.getElementById('simDescontoNecessario').textContent =
+    (xSolucao >= 0 ? '' : '') + xSolucao.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '%';
+  document.getElementById('simPrecoCompraAtual').textContent = fmt2(pc);
+  document.getElementById('simNovoPrecoCompra').textContent = fmt2(novoPrecoCompra);
+  document.getElementById('simNovoCustoVenda').textContent = fmt3(novoCustoVenda);
+  document.getElementById('simCustoTotalConfere').textContent = fmt3(custoTotalResultante);
+}
+
+document.querySelectorAll('.calc-sim').forEach(el => el.addEventListener('input', atualizarSimulacaoIcms));
 </script>
 </body>
 </html>

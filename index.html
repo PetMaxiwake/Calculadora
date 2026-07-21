@@ -46,7 +46,7 @@
   }
   .product-row{
     background:var(--surface);border:1px solid var(--line);border-radius:10px;
-    padding:12px 16px;display:grid;grid-template-columns:1fr 90px;gap:12px;margin-bottom:22px;
+    padding:12px 16px;display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:22px;
   }
   .product-row label{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);display:block;margin-bottom:4px;}
   .product-row input{width:100%;border:1px solid var(--line);border-radius:6px;padding:7px 9px;font-family:'Inter',sans-serif;font-size:13px;background:#fbfbfa;}
@@ -150,29 +150,22 @@
   .row-line span:last-child{font-family:'IBM Plex Mono',monospace;}
   .row-line.total{font-weight:600;border-bottom:none;padding-top:8px;}
 
-  .comp-grid{
-    display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px;
-  }
-  @media (max-width:680px){ .comp-grid{grid-template-columns:1fr;} }
-  .comp-card{
-    background:var(--surface);border:1px solid var(--line);border-radius:12px;
-    padding:16px 18px;
-  }
-  .comp-card h3{
-    font-family:'Space Grotesk',sans-serif;font-size:13px;margin:0 0 10px;
-    color:var(--accent);text-transform:uppercase;letter-spacing:.03em;
+  .subresult-title{
+    font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:#a9c4bb;
+    margin:2px 0 6px;
   }
   .comp-line{
     display:flex;justify-content:space-between;font-size:12.5px;padding:4px 0;
-    border-bottom:1px dashed var(--line);color:var(--ink);
+    color:#eef7f3;border-bottom:1px solid rgba(255,255,255,.08);
   }
-  .comp-line span:first-child{color:var(--ink-soft);}
-  .comp-line span:last-child{font-family:'IBM Plex Mono',monospace;color:var(--ink);}
+  .comp-line span:first-child{color:#a9c4bb;}
+  .comp-line span:last-child{font-family:'IBM Plex Mono',monospace;color:#eef7f3;}
   .comp-line.total{
-    font-weight:700;border-bottom:none;border-top:1.5px solid var(--ink);
-    margin-top:4px;padding-top:8px;font-size:13.5px;color:var(--accent);
+    font-weight:700;border-bottom:none;border-top:1.5px solid rgba(255,255,255,.3);
+    margin-top:4px;padding-top:8px;font-size:13.5px;color:#7be3a8;
   }
-  .comp-line.total span:last-child{color:var(--accent);}
+  .comp-line.total span:last-child{color:#7be3a8;}
+  .comp-empty{font-size:11.5px;color:#7f948c;font-style:italic;padding:4px 0;}
 
   .erp-note{
     background:var(--accent-soft);border:1px solid #bcd9cd;border-radius:6px;
@@ -222,10 +215,6 @@
     <div>
       <label>Produto</label>
       <input id="produto" value="1958151 — Golden Form Ad.Carne M.Bites 3kg — Premier">
-    </div>
-    <div>
-      <label>Qtd. Emb.</label>
-      <input id="qtdEmb" type="number" value="1" min="1">
     </div>
   </div>
 
@@ -310,19 +299,16 @@
       <div class="row-line"><span>Preço Mínimo</span><span id="outPrecoMinimo">0,00</span></div>
       <div class="row-line"><span>Pr. Mín. Ct. Médio*</span><span id="outPrMinCtMedio">0,00</span></div>
       <div class="row-line total"><span>Pr. Ideal p/ Compra</span><span id="outPrIdealCompra">0,00</span></div>
-    </div>
 
-  </div>
-
-  <div class="comp-grid">
-    <div class="comp-card">
-      <h3>Composição Custo de Compra</h3>
+      <div class="divider"></div>
+      <div class="subresult-title">Composição Custo de Compra</div>
       <div id="breakdownCompra"></div>
-    </div>
-    <div class="comp-card">
-      <h3>Composição Custo de Venda</h3>
+
+      <div class="divider"></div>
+      <div class="subresult-title">Composição Custo de Venda</div>
       <div id="breakdownVenda"></div>
     </div>
+
   </div>
 
   <footer class="hint">
@@ -433,21 +419,31 @@ function calcular(){
   document.getElementById('outPrMinCtMedio').textContent = fmt2(prMinCtMedio);
   document.getElementById('outPrIdealCompra').textContent = fmt2(prIdealCompra);
 
-  if (erpCustoCompra !== null){
-    document.getElementById('breakdownCompra').innerHTML =
-      `<div class="comp-line"><span>Preço de Compra (última compra)</span><span>${fmt3(pc)}</span></div>` +
-      `<div class="comp-line"><span>Custo Médio (ERP)</span><span>${fmt3(erpCustoMedio)}</span></div>` +
-      `<div class="comp-line total"><span>(=) Custo de Compra (direto do ERP)</span><span>${fmt3(custoCompra)}</span></div>` +
-      `<div class="comp-line" style="font-size:10.5px;color:var(--ink-soft);border-bottom:none;">As duas tabelas exportadas não trazem o detalhamento por % (desconto/ICMS-ST) de forma confiável por produto — por isso o valor acima vem direto do sistema, e os campos % ao lado servem só para simular cenários manualmente (não refletem necessariamente os % reais dessa compra).</div>`;
-  } else {
-    document.getElementById('breakdownCompra').innerHTML = linhasCompra.map(([l,v])=>
-      `<div class="comp-line"><span>${l}</span><span>${fmt3(v)}</span></div>`
-    ).join('') + `<div class="comp-line total"><span>(=) Custo de Compra</span><span>${fmt3(custoCompra)}</span></div>`;
-  }
+  const fmtLine = ([l,v]) => `<div class="comp-line"><span>${l}</span><span>${fmt3(v)}</span></div>`;
+  const semLinhas = '<div class="comp-empty">Nenhum componente adicional além do valor base.</div>';
 
-  document.getElementById('breakdownVenda').innerHTML = linhasVenda.map(([l,v])=>
-    `<div class="comp-line"><span>${l}</span><span>${fmt3(v)}</span></div>`
-  ).join('') + `<div class="comp-line total"><span>(=) Custo de Venda</span><span>${fmt3(custoVenda)}</span></div>`;
+  // Custo de Compra: mostra só as linhas com valor relevante (esconde zeradas).
+  // Quando um produto do ERP está carregado, o total exibido é sempre o valor exato
+  // travado (erpCustoCompra); se sobrar diferença não explicada pelas % (ex: ICMS-ST,
+  // que não temos detalhado por produto), aparece como uma linha de ajuste transparente.
+  const linhasCompraVisiveis = linhasCompra.filter(([,v]) => Math.abs(v) > 0.0005);
+  let htmlCompra = linhasCompraVisiveis.length ? linhasCompraVisiveis.map(fmtLine).join('') : semLinhas;
+  if (erpCustoCompra !== null){
+    const ajuste = erpCustoCompra - custoCompraManual;
+    if (Math.abs(ajuste) > 0.005){
+      htmlCompra += fmtLine(['(+/-) Ajuste não detalhado (ICMS-ST/outros)', ajuste]);
+    }
+    htmlCompra += `<div class="comp-line total"><span>(=) Custo de Compra (ERP)</span><span>${fmt3(custoCompra)}</span></div>`;
+    htmlCompra += `<div class="comp-empty">Custo Médio (ERP): ${fmt3(erpCustoMedio)} — usado no Pr. Mín. Ct. Médio.</div>`;
+  } else {
+    htmlCompra += `<div class="comp-line total"><span>(=) Custo de Compra</span><span>${fmt3(custoCompra)}</span></div>`;
+  }
+  document.getElementById('breakdownCompra').innerHTML = htmlCompra;
+
+  const linhasVendaVisiveis = linhasVenda.filter(([,v]) => Math.abs(v) > 0.0005);
+  let htmlVenda = linhasVendaVisiveis.length ? linhasVendaVisiveis.map(fmtLine).join('') : semLinhas;
+  htmlVenda += `<div class="comp-line total"><span>(=) Custo de Venda</span><span>${fmt3(custoVenda)}</span></div>`;
+  document.getElementById('breakdownVenda').innerHTML = htmlVenda;
 }
 
 document.querySelectorAll('.calc').forEach(el => el.addEventListener('input', calcular));
@@ -551,7 +547,7 @@ function carregarUnidade(unidade){
   const p = ERP_PRODUTOS[produtoAtualCodigo];
   const dados = p.u[unidade];
   if (!dados) return;
-  const [precoCompra, custoCompra, custoMedio, precoVenda, percdesc, aliqpis, aliqcofins] = dados;
+  const [precoCompra, custoCompra, custoMedio, precoVenda, percdesc, aliqpis, aliqcofins, encontrado, dtUltCompra] = dados;
 
   document.getElementById('produto').value = `${produtoAtualCodigo} — ${p.d}${p.m ? ' — ' + p.m : ''}`;
   document.getElementById('precoCompra').value = precoCompra;
@@ -565,7 +561,7 @@ function carregarUnidade(unidade){
   // % Descontos, % Crédito PIS e % Crédito Cofins: valores REAIS da última nota de
   // compra (tabela movprodd), quando encontrados. Quando não encontrados (compra mais
   // antiga que 2023, fora da janela exportada), usa os padrões da empresa.
-  const temDadosReais = !(percdesc === 0 && aliqpis === 1.65 && aliqcofins === 7.6);
+  const temDadosReais = encontrado === 1;
   document.getElementById('descontos').value = percdesc.toFixed(3);
   document.getElementById('credPis').value = aliqpis.toFixed(3);
   document.getElementById('credCofins').value = aliqcofins.toFixed(3);
@@ -574,14 +570,15 @@ function carregarUnidade(unidade){
 
   erpCustoCompra = custoCompra;
   erpCustoMedio = custoMedio;
+  const dtFormatada = dtUltCompra ? dtUltCompra.split('-').reverse().join('/') : 'data não disponível';
   avisoErpCompra.style.display = 'block';
   if (temDadosReais){
     avisoErpCompra.textContent =
-      `% Descontos (${percdesc.toFixed(2)}%), % Crédito PIS (${aliqpis.toFixed(2)}%) e % Crédito Cofins (${aliqcofins.toFixed(2)}%) vêm da última nota de compra real (tabela movprodd). ` +
+      `Última compra considerada: ${dtFormatada}. % Descontos (${percdesc.toFixed(2)}%), % Crédito PIS (${aliqpis.toFixed(2)}%) e % Crédito Cofins (${aliqcofins.toFixed(2)}%) vêm dessa nota real (tabela movprodd). ` +
       `Custo de Compra (${fmt3(custoCompra)}) e Custo Médio (${fmt3(custoMedio)}) vêm direto do ERP. ICMS-ST/MVA continuam não disponíveis por produto.`;
   } else {
     avisoErpCompra.textContent =
-      `Não encontramos a nota de compra desse produto no período exportado (2023-2026) — % Descontos ficou em 0% e Créditos PIS/Cofins nos padrões da empresa (1,65%/7,6%). ` +
+      `Última compra considerada: ${dtFormatada} — não encontramos a nota dessa data no período exportado (2023-2026), então % Descontos ficou em 0% e Créditos PIS/Cofins nos padrões da empresa (1,65%/7,6%). ` +
       `Custo de Compra (${fmt3(custoCompra)}) e Custo Médio (${fmt3(custoMedio)}) continuam exatos, vindos direto do ERP.`;
   }
 
